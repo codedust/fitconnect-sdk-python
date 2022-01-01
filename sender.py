@@ -1,13 +1,18 @@
 from datetime import datetime
 from fitconnect import FITConnectClient, Environment
 from strictyaml import load
+import logging
+
+# configure logging
+logging.basicConfig()
+logging.getLogger('fitconnect').level = logging.INFO
 
 # read config
 with open('conf/sender.yaml') as file:
     config = load(file.read())
 
 # initialize SDK
-fitc = FITConnectClient(config_yaml=config['sdk'].as_yaml(), debug=False)
+fitc = FITConnectClient(config_yaml=config['sdk'].as_yaml())
 
 with open('./test.pdf', 'rb') as f:
     file_content = f.read()

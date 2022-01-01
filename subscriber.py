@@ -1,6 +1,11 @@
-import json
 from fitconnect import FITConnectClient, Environment
 from strictyaml import load
+import json
+import logging
+
+# configure logging
+logging.basicConfig()
+#logging.getLogger('fitconnect').level = logging.INFO
 
 # load private key for decryption
 private_key_decryption = None
@@ -12,7 +17,7 @@ with open('conf/subscriber.yaml') as file:
     config = load(file.read())
 
 # initialize SDK
-fitc = FITConnectClient(config_yaml=config['sdk'].as_yaml(), debug=False)
+fitc = FITConnectClient(config_yaml=config['sdk'].as_yaml())
 
 # activate destination
 fitc.activate_destination(config.data['destination_id'])

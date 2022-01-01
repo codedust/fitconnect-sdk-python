@@ -1,10 +1,14 @@
 import json
+import logging
 import requests
 import uuid
 from enum import Enum
 from jwcrypto import jwk, jwe
 from strictyaml import load, Map, Str, Int, Seq, YAMLError
 from strictyaml import Enum as YAMLEnum
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
 
 class Environment(Enum):
     DEV = 1
@@ -28,9 +32,8 @@ _ENVIRONMENT_CONFIG = {
 PROBLEM_PREFIX = 'https://schema.fitko.de/fit-connect/submission-api/problems/'
 
 class FITConnectClient:
-    def __init__(self, config_file=None, config_yaml=None, debug=False):
+    def __init__(self, config_file=None, config_yaml=None):
         self._parse_config(config_file, config_yaml)
-        self.debug = debug
 
     def _parse_config(self, config_file=None, config_yaml=None):
         if (config_yaml is None) == (config_file is None):
@@ -68,12 +71,11 @@ class FITConnectClient:
         self.submission_api_url = _ENVIRONMENT_CONFIG[environment]['SUBMISSION_API_URL']
 
     def _get_access_token(self, client_id, client_secret):
-        if self.debug: print('GET', self.token_url)
+        log.debug(f'POST {self.token_url}')
         r = requests.post(self.token_url, data = {'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret})
-        if self.debug:
-            print('<', r.request.body)
-            print('>', r.text)
-            print('>', r.status_code)
+        log.debug(f'req = {r.request.body}')
+        log.debug(f'status_code = {r.status_code}')
+        log.debug(f'resp = {r.text}')
         if r.status_code == 404:
             raise ValueError("Invalid OAuth token url")
         if r.status_code == 401:
@@ -100,51 +102,51 @@ class FITConnectClient:
     def _authorized_get(self, path):
         self._refresh_access_token()
 
-        if self.debug: print('GET', self.submission_api_url + path)
+        log.debug(f'GET {self.submission_api_url + path}')
         r = requests.get(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token})
         # TODO: error handling for http errors
-        if self.debug:
-            print('>', r.text)
+        log.debug(f'status_code = {r.status_code}')
+        log.debug(f'resp = {r.text}')
         return r
 
     # authorized post to submission api
     def _authorized_post(self, path, json=None, data=None):
         self._refresh_access_token()
 
-        if self.debug: print('POST', self.submission_api_url + path)
+        log.debug(f'POST {self.submission_api_url + path}')
         r = requests.post(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
         # TODO: error handling for http errors
-        if self.debug:
-            print('<', r.request.body)
-            print('>', r.text)
+        log.debug(f'req = {r.request.body}')
+        log.debug(f'status_code = {r.status_code}')
+        log.debug(f'resp = {r.text}')
         return r
 
     # authorized put to submission api
     def _authorized_put(self, path, json=None, data=None, content_type=None):
         self._refresh_access_token()
 
-        if self.debug: print('PUT', self.submission_api_url + path)
+        log.debug(f'PUT {self.submission_api_url + path}')
         if content_type is not None:
             r = requests.put(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token, 'Content-Type': content_type}, json=json, data=data)
         else:
             r = requests.put(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
 
         # TODO: error handling for http errors
-        if self.debug:
-            print('<', r.request.body)
-            print('>', r.text)
+        log.debug(f'req = {r.request.body}')
+        log.debug(f'status_code = {r.status_code}')
+        log.debug(f'resp = {r.text}')
         return r
 
     # authorized patch to submission api
     def _authorized_patch(self, path, json=None, data=None):
         self._refresh_access_token()
 
-        if self.debug: print('PATCH', self.submission_api_url + path)
+        log.debug(f'PATCH {self.submission_api_url + path}')
         r = requests.patch(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
         # TODO: error handling for http errors
-        if self.debug:
-            print('<', r.request.body)
-            print('>', r.text)
+        log.debug(f'req = {r.request.body}')
+        log.debug(f'status_code = {r.status_code}')
+        log.debug(f'resp = {r.text}')
         return r
 
     def get_destination(self, destination_id):
@@ -213,12 +215,10 @@ class FITConnectClient:
         submission = r_create_submission.json()
         submission['announcedAttachments'] = submission_request['announcedAttachments']
 
-        if self.debug: print('Submission created:', submission['submissionId'])
-
+        log.info('Submission created (submission_id = {})'.format(submission['submissionId']))
         return submission
 
     def upload_attachment(self, destination_id, submission_id, attachment_id, encryptedAttachment=None, attachment=None):
-        #print(encryptedAttachment, attachment)
         if encryptedAttachment is None and attachment is not None:
             encryptedAttachment = self.encrypt(destination_id, attachment)
 
@@ -230,11 +230,10 @@ class FITConnectClient:
         if r_upload_attachment.status_code != 204:
             raise ValueError("Error while uploading attachment", r_upload_attachment.json())
 
-        if self.debug: print('Submission submitted')
+        log.info(f'Attachment uploaded (submission_id = {submission_id}, attachment_id = {attachment_id})')
         return r_upload_attachment
 
     def submit_submission(self, destination_id, submission_id, encryptedMetadata=None, encryptedData=None, metadata=None, data=None):
-        #print(encryptedMetadata, encryptedData, metadata, data)
         if encryptedMetadata is None and metadata is not None:
             encryptedMetadata = self.encrypt(destination_id, metadata)
         if encryptedData is None and data is not None:
@@ -244,7 +243,8 @@ class FITConnectClient:
             'encryptedMetadata': encryptedMetadata,
             'encryptedData': encryptedData
         })
-        if self.debug: print('Submission submitted')
+
+        log.info(f'Submission submitted (submission_id = {submission_id})')
         return r_submit_submission.json()
 
     def submission(self, destination_id, leika_key, encryptedMetadata=None, encryptedData=None, metadata=None, data=None, attachments=[]):
@@ -273,6 +273,8 @@ class FITConnectClient:
 
             raise ValueError("Error fetching submission")
 
+        log.info(f'Submission retrieved (submission_id = {submission_id})')
+
         submission = r_get_submission.json() # TODO: validate schema
 
         metadata_decrypted = self.decrypt(private_key, submission['encryptedMetadata'])
@@ -290,6 +292,7 @@ class FITConnectClient:
         attachments = {}
         for attachment_id in attachment_ids:
             r_get_attachment = self._authorized_get(f'/submissions/{submission_id}/attachments/{attachment_id}')
+            log.info(f'Attachment retrieved (submission_id = {submission_id}, attachment_id = {attachment_id})')
 
             data_decrypted = self.decrypt(private_key, r_get_attachment.text)
             if data_decrypted is not None:
