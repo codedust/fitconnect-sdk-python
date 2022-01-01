@@ -1,0 +1,7 @@
+destination_id: ''
+leika_key: 'urn:de:fim:leika:leistung:99...'
+
+sdk:
+  environment: TESTING
+  client_id: ''
+  client_secret: ''

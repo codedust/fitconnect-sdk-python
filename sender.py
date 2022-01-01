@@ -1,17 +1,18 @@
-from fitconnect import FITConnectClient, Environment
 from datetime import datetime
+from fitconnect import FITConnectClient, Environment
+from strictyaml import load
 
-client_id = ''
-client_secret = ''
-destination_id = ''
-leika_key = 'urn:de:fim:leika:leistung:99001004000000'
+# read config
+with open('conf/sender.yaml') as file:
+    config = load(file.read())
 
 # initialize SDK
-fitc = FITConnectClient(Environment.TESTING, client_id, client_secret, debug=True)
+fitc = FITConnectClient(config_yaml=config['sdk'].as_yaml(), debug=False)
 
 with open('./test.pdf', 'rb') as f:
     file_content = f.read()
-    status = fitc.submission(destination_id, leika_key, metadata='{"metadata": "' + str(datetime.now()) + '"}', data='{}', attachments=[file_content])
+
+    status = fitc.submission(config.data['destination_id'], config.data['leika_key'], metadata='{"metadata": "' + str(datetime.now()) + '"}', data='{}', attachments=[file_content])
     print(status)
 
 # == mid-level api ==

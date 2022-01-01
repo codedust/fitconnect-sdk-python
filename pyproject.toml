@@ -10,6 +10,7 @@ python = "^3.9"
 requests = "^2.26.0"
 #jwcrypto = "^1.1"
 jwcrypto = { git = "https://github.com/latchset/jwcrypto.git" }
+strictyaml = "^1.6.1"
 
 [tool.poetry.dev-dependencies]
 

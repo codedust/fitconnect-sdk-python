@@ -1,8 +1,10 @@
-from enum import Enum
-import requests
 import json
+import requests
 import uuid
+from enum import Enum
 from jwcrypto import jwk, jwe
+from strictyaml import load, Map, Str, Int, Seq, YAMLError
+from strictyaml import Enum as YAMLEnum
 
 class Environment(Enum):
     DEV = 1
@@ -26,22 +28,48 @@ _ENVIRONMENT_CONFIG = {
 PROBLEM_PREFIX = 'https://schema.fitko.de/fit-connect/submission-api/problems/'
 
 class FITConnectClient:
-    def __init__(self, environment, client_id, client_secret, debug=False):
-        if environment in _ENVIRONMENT_CONFIG.keys():
-            if environment not in [Environment.DEV, Environment.TESTING]:
-                raise ValueError("For now, this SDK is meant to be used for testing purposes only. Please do not use in production yet!")
-            self.environment_config = _ENVIRONMENT_CONFIG[environment]
-        else:
-            environments = ", ".join(["Environment." + e.name for e in Environment])
-            raise ValueError(f'Invalid environment given: {environment}. Must be one of {environments}.')
-
-        self.client_id = client_id
-        self.client_secret = client_secret
+    def __init__(self, config_file=None, config_yaml=None, debug=False):
+        self._parse_config(config_file, config_yaml)
         self.debug = debug
 
+    def _parse_config(self, config_file=None, config_yaml=None):
+        if (config_yaml is None) == (config_file is None):
+           raise TypeError('You must specify exactly one of config_file, config.')
+
+        # read config file
+        if config_file is not None:
+            with open(config_file) as file:
+                config_yaml = file.read()
+
+        if config_yaml is None:
+           raise TypeError('You must specify exactly one of config_file, config.')
+
+        config_schema = Map({
+            "environment": YAMLEnum([e.name for e in Environment]), # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
+            "client_id": Str(),
+            "client_secret": Str(),
+        })
+
+        # parse yaml config
+        if config_file is not None:
+            config = load(config_yaml, config_schema, label=config_file).data
+        else:
+            config = load(config_yaml, config_schema).data
+
+        self.client_id = config['client_id']
+        self.client_secret = config['client_secret']
+
+        # configure environment
+        environment = Environment[config['environment']]
+        if environment not in [Environment.DEV, Environment.TESTING]:
+            raise ValueError("For now, this SDK is meant to be used for testing purposes only. Please do not use in production yet!")
+
+        self.token_url = _ENVIRONMENT_CONFIG[environment]['TOKEN_URL']
+        self.submission_api_url = _ENVIRONMENT_CONFIG[environment]['SUBMISSION_API_URL']
+
     def _get_access_token(self, client_id, client_secret):
-        if self.debug: print('GET', self.environment_config['TOKEN_URL'])
-        r = requests.post(self.environment_config['TOKEN_URL'], data = {'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret})
+        if self.debug: print('GET', self.token_url)
+        r = requests.post(self.token_url, data = {'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret})
         if self.debug:
             print('<', r.request.body)
             print('>', r.text)
@@ -72,8 +100,8 @@ class FITConnectClient:
     def _authorized_get(self, path):
         self._refresh_access_token()
 
-        if self.debug: print('GET', self.environment_config['SUBMISSION_API_URL'] + path)
-        r = requests.get(self.environment_config['SUBMISSION_API_URL'] + path, headers = {'Authorization': 'Bearer ' + self.access_token})
+        if self.debug: print('GET', self.submission_api_url + path)
+        r = requests.get(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token})
         # TODO: error handling for http errors
         if self.debug:
             print('>', r.text)
@@ -83,8 +111,8 @@ class FITConnectClient:
     def _authorized_post(self, path, json=None, data=None):
         self._refresh_access_token()
 
-        if self.debug: print('POST', self.environment_config['SUBMISSION_API_URL'] + path)
-        r = requests.post(self.environment_config['SUBMISSION_API_URL'] + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
+        if self.debug: print('POST', self.submission_api_url + path)
+        r = requests.post(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
         # TODO: error handling for http errors
         if self.debug:
             print('<', r.request.body)
@@ -95,11 +123,11 @@ class FITConnectClient:
     def _authorized_put(self, path, json=None, data=None, content_type=None):
         self._refresh_access_token()
 
-        if self.debug: print('PUT', self.environment_config['SUBMISSION_API_URL'] + path)
+        if self.debug: print('PUT', self.submission_api_url + path)
         if content_type is not None:
-            r = requests.put(self.environment_config['SUBMISSION_API_URL'] + path, headers = {'Authorization': 'Bearer ' + self.access_token, 'Content-Type': content_type}, json=json, data=data)
+            r = requests.put(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token, 'Content-Type': content_type}, json=json, data=data)
         else:
-            r = requests.put(self.environment_config['SUBMISSION_API_URL'] + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
+            r = requests.put(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
 
         # TODO: error handling for http errors
         if self.debug:
@@ -111,8 +139,8 @@ class FITConnectClient:
     def _authorized_patch(self, path, json=None, data=None):
         self._refresh_access_token()
 
-        if self.debug: print('PATCH', self.environment_config['SUBMISSION_API_URL'] + path)
-        r = requests.patch(self.environment_config['SUBMISSION_API_URL'] + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
+        if self.debug: print('PATCH', self.submission_api_url + path)
+        r = requests.patch(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token}, json=json, data=data)
         # TODO: error handling for http errors
         if self.debug:
             print('<', r.request.body)
