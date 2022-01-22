@@ -4,8 +4,6 @@ import requests
 import uuid
 from enum import Enum
 from jwcrypto import jwk, jwe
-from strictyaml import load, Map, Str, Int, Seq, YAMLError
-from strictyaml import Enum as YAMLEnum
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -32,43 +30,18 @@ _ENVIRONMENT_CONFIG = {
 PROBLEM_PREFIX = 'https://schema.fitko.de/fit-connect/submission-api/problems/'
 
 class FITConnectClient:
-    def __init__(self, config_file=None, config_yaml=None):
-        self._parse_config(config_file, config_yaml)
-
-    def _parse_config(self, config_file=None, config_yaml=None):
-        if (config_yaml is None) == (config_file is None):
-           raise TypeError('You must specify exactly one of config_file, config.')
-
-        # read config file
-        if config_file is not None:
-            with open(config_file) as file:
-                config_yaml = file.read()
-
-        if config_yaml is None:
-           raise TypeError('You must specify exactly one of config_file, config.')
-
-        config_schema = Map({
-            "environment": YAMLEnum([e.name for e in Environment]), # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
-            "client_id": Str(),
-            "client_secret": Str(),
-        })
-
-        # parse yaml config
-        if config_file is not None:
-            config = load(config_yaml, config_schema, label=config_file).data
-        else:
-            config = load(config_yaml, config_schema).data
-
-        self.client_id = config['client_id']
-        self.client_secret = config['client_secret']
-
+    def __init__(self, environment, client_id, client_secret):
         # configure environment
-        environment = Environment[config['environment']]
-        if environment not in [Environment.DEV, Environment.TESTING]:
-            raise ValueError("For now, this SDK is meant to be used for testing purposes only. Please do not use in production yet!")
+        allowed_environments = [Environment.DEV, Environment.TESTING]
+        if environment not in allowed_environments:
+            raise ValueError(f'Invalid environment given: {environment}. For now, this SDK is meant to be used for testing purposes only. Please do not use in production yet! Environment be one of {allowed_environments}.')
 
         self.token_url = _ENVIRONMENT_CONFIG[environment]['TOKEN_URL']
         self.submission_api_url = _ENVIRONMENT_CONFIG[environment]['SUBMISSION_API_URL']
+
+        # set OAuth credentials
+        self.client_id = client_id
+        self.client_secret = client_secret
 
     def _get_access_token(self, client_id, client_secret):
         log.debug(f'POST {self.token_url}')

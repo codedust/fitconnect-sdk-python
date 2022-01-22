@@ -1,23 +1,39 @@
 from datetime import datetime
 from fitconnect import FITConnectClient, Environment
-from strictyaml import load
+from strictyaml import load, Map, Str, Int, Seq, YAMLError
+from strictyaml import Enum as YAMLEnum
 import logging
 
 # configure logging
 logging.basicConfig()
 logging.getLogger('fitconnect').level = logging.INFO
 
-# read config
-with open('conf/sender.yaml') as file:
-    config = load(file.read())
+def read_config(config_file):
+    config_schema = Map({
+        "destination_id": Str(),
+        "leika_key": Str(),
+        "sdk": Map({
+            "environment": YAMLEnum([e.name for e in Environment]), # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
+            "client_id": Str(),
+            "client_secret": Str(),
+        }),
+    })
+
+    # parse yaml config
+    with open(config_file) as file:
+        config = load(file.read(), config_schema, label=config_file).data
+    return config
+
+# read config_file
+config = read_config('conf/sender.yaml')
 
 # initialize SDK
-fitc = FITConnectClient(config_yaml=config['sdk'].as_yaml())
+fitc = FITConnectClient(Environment[config['sdk']['environment']], config['sdk']['client_id'], config['sdk']['client_secret'])
 
 with open('./test.pdf', 'rb') as f:
     file_content = f.read()
 
-    status = fitc.submission(config.data['destination_id'], config.data['leika_key'], metadata='{"metadata": "' + str(datetime.now()) + '"}', data='{}', attachments=[file_content])
+    status = fitc.submission(config['destination_id'], config['leika_key'], metadata='{"metadata": "' + str(datetime.now()) + '"}', data='{}', attachments=[file_content])
     print(status)
 
 # == mid-level api ==
