@@ -347,7 +347,6 @@ class FITConnectClient:
 
             try:
                 jsonschema.validate(metadata, metadata_schema)
-                print("valid")
             except jsonschema.exceptions.ValidationError as e:
                 log.error("Metadata does not match schema")
                 raise e # TODO: raise InvalidMetadataError
@@ -386,7 +385,6 @@ class FITConnectClient:
 
         if '$schema' in metadata:
             schema = metadata['$schema']
-            print('^' + re.escape(METADATA_SCHEMA_URI) + '('+SEMVER_REGEX+')' + re.escape('/metadata.schema.json') + '$')
             match = re.match('^' + re.escape(METADATA_SCHEMA_URI) + '('+SEMVER_REGEX+')' + re.escape('/metadata.schema.json') + '$', schema)
             if match:
                 schema_version = semver.Version.parse(match[1])
