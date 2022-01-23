@@ -33,7 +33,7 @@ fitc = FITConnectClient(Environment[config['sdk']['environment']], config['sdk']
 with open('./test.pdf', 'rb') as f:
     file_content = f.read()
 
-    status = fitc.submission(config['destination_id'], config['leika_key'], metadata='{"metadata": "' + str(datetime.now()) + '"}', data='{}', attachments=[file_content])
+    status = fitc.submission(config['destination_id'], config['leika_key'], data={"$schema": "urn:example:schema:submission"}, attachments=[file_content])
     print(status)
 
 # == mid-level api ==
