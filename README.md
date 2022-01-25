@@ -22,7 +22,7 @@ for submission in submissions:
     submission = fitc.retrieve_submission(submission['submissionId'], private_key_decryption)
 ```
 
-See [./sender.py](sender.py) and [./subscriber.py](subscriber.py) for details.
+See [sender.py](./sender.py) and [subscriber.py](./subscriber.py) for details.
 
 ## How to run examples
 1. Create an account for the [test environment](https://docs.fitko.de/fit-connect/docs/getting-started/account).
