@@ -14,11 +14,20 @@ from jwcrypto import jwk, jwe
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-class Environment(Enum):
-    DEV = 1
-    TESTING = 2
-    STAGING = 3
-    PRODUCTION = 4
+class _DocEnum(Enum):
+    def __new__(cls, value, doc=None):
+        self = object.__new__(cls)  # calling super().__new__(value) here would fail
+        self._value_ = value
+        if doc is not None:
+            self.__doc__ = doc
+        return self
+
+class Environment(_DocEnum):
+    '''The environment Enum that specifies the server environment to talk with.'''
+    DEV = 1, "The development environment (used internally by the FIT-Connect team)"
+    TESTING = 2, "The test environment that can be used freely"
+    STAGING = 3, "The staging environment to test update before deploying to production"
+    PRODUCTION = 4, "The production environment"
 
 _ENVIRONMENT_CONFIG = {
     Environment.DEV: {
@@ -38,7 +47,26 @@ METADATA_SCHEMA_URI = 'https://schema.fitko.de/fit-connect/metadata/'
 SEMVER_REGEX = '[1-9]+\.[0-9]+\.[0-9]+'
 
 class FITConnectClient:
+    '''The main class of this SDK. Initialize the SDK by initializing a
+    FITConnectClient object.
+
+    :param environment: The server environment to talk with. Use
+        Environment.TESTING to access the test environment.
+    :type environment: enum:`Environment`
+    :param client_id: The OAuth client id of the API client registered in the
+        self service portal.
+    :type client_id: str
+    :param client_secret: The OAuth client secret of the API client registered
+        in the self service portal.
+    :type client_secret: str
+    :param insecure: Set to False to disable some security checks. For debugging
+        purposes only!!
+    :type insecure: bool, optional
+    '''
+
     def __init__(self, environment, client_id, client_secret, insecure=False):
+        '''Constructor method
+        '''
         # configure environment
         allowed_environments = [Environment.DEV, Environment.TESTING]
         if environment not in allowed_environments:
@@ -54,6 +82,15 @@ class FITConnectClient:
         self.ignore_metadata_hashes = insecure
 
     def _get_access_token(self, client_id, client_secret):
+        '''Internal method to receive the OAuth access token
+
+        :param client_id: The OAuth client id of the API client registered in the
+            self service portal.
+        :type client_id: str
+        :param client_secret: The OAuth client secret of the API client registered
+            in the self service portal.
+        :type client_secret: str
+        '''
         log.debug(f'POST {self.token_url}')
         r = requests.post(self.token_url, data = {'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret})
         log.debug(f'req = {r.request.body}')
@@ -76,13 +113,18 @@ class FITConnectClient:
         return access_token
 
     def _refresh_access_token(self):
+        '''Internal method to refresh the OAuth access token
+        '''
         # TODO: only refresh if access token is expired
         if self.client_id is not None and self.client_secret is not None:
             self.access_token = self._get_access_token(self.client_id, self.client_secret)
 
-
-    # authorized get to submission api
     def _authorized_get(self, path):
+        '''Internal method to execute authorized GET requests to Submission API
+
+        :param path: The relative HTTP path
+        :type path: str
+        '''
         self._refresh_access_token()
 
         log.debug(f'GET {self.submission_api_url + path}')
@@ -92,8 +134,20 @@ class FITConnectClient:
         log.debug(f'resp = {r.text}')
         return r
 
-    # authorized post to submission api
     def _authorized_post(self, path, json=None, data=None):
+        '''Internal method to execute authorized POST requests to Submission API
+
+        :param path: The relative HTTP path
+        :type path: str
+        :param json: A JSON serializable Python object to send in the body of the
+            request
+        :type json: object, optional
+        :param data: Dictionary, list of tuples, bytes, or file-like object to
+            send in the body of the request.
+        :type data: dict, list of tuples, bytes or file-like object, optional
+        :return: Returns a Requests (python HTTP library) Response object
+        :rtype: requests.Response
+        '''
         self._refresh_access_token()
 
         log.debug(f'POST {self.submission_api_url + path}')
@@ -104,8 +158,22 @@ class FITConnectClient:
         log.debug(f'resp = {r.text}')
         return r
 
-    # authorized put to submission api
     def _authorized_put(self, path, json=None, data=None, content_type=None):
+        '''Internal method to execute authorized PUT requests to Submission API
+
+        :param path: The relative HTTP path
+        :type path: str
+        :param json: A JSON serializable Python object to send in the body of the
+            request
+        :type json: object, optional
+        :param data: Dictionary, list of tuples, bytes, or file-like object to
+            send in the body of the request.
+        :type data: dict, list of tuples, bytes or file-like object, optional
+        :param content_type: The request body's content type
+        :type content_type: str
+        :return: Returns a Requests (python HTTP library) Response object
+        :rtype: requests.Response
+        '''
         self._refresh_access_token()
 
         log.debug(f'PUT {self.submission_api_url + path}')
@@ -120,8 +188,20 @@ class FITConnectClient:
         log.debug(f'resp = {r.text}')
         return r
 
-    # authorized patch to submission api
     def _authorized_patch(self, path, json=None, data=None):
+        '''Internal method to execute authorized PATCH requests to Submission API
+
+        :param path: The relative HTTP path
+        :type path: str
+        :param json: A JSON serializable Python object to send in the body of the
+            request
+        :type json: object, optional
+        :param data: Dictionary, list of tuples, bytes, or file-like object to
+            send in the body of the request.
+        :type data: dict, list of tuples, bytes or file-like object, optional
+        :return: Returns a Requests (python HTTP library) Response object
+        :rtype: requests.Response
+        '''
         self._refresh_access_token()
 
         log.debug(f'PATCH {self.submission_api_url + path}')
@@ -133,12 +213,29 @@ class FITConnectClient:
         return r
 
     def get_destination(self, destination_id):
+        '''Get destination object
+
+        :param destination_id: Destination id (uuid) of the destination to query
+        :type destination_id: str
+        '''
         return self._authorized_get(f'/destinations/{destination_id}')
 
     def activate_destination(self, destination_id):
+        '''Activate destination
+
+        :param destination_id: Destination id (uuid) of the destination to activate
+        :type destination_id: str
+        '''
         return self._authorized_patch(f'/destinations/{destination_id}', json={"status": "active"})
 
     def convert_to_bytes(self, obj):
+        '''Convert dict, str or bytes object to bytes.
+
+        :param obj: The dict, str, or bytes object
+        :type obj: dict, str, or bytes
+        :return: The obj converted to bytes
+        :rtype: bytes
+        '''
         if isinstance(obj, dict):
             return json.dumps(obj).encode('utf-8')
         elif isinstance(obj, str):
@@ -149,6 +246,18 @@ class FITConnectClient:
             raise TypeError(f"Cannot convert type {type(obj).__name__} to bytes")
 
     def encrypt(self, destination_id, data):
+        '''Encrypt data for the given destination. The given data will be
+        encrypted using the public key of the given destination. The public keys
+        is retrieved automatically.
+
+        :param destination_id: The destination id (uuid) of the destination for
+            which the data will be encrypted
+        :type destination_id: str
+        :param data: The data to be encrypted
+        :type data: dict, str, or bytes
+        :return: A ‘raw’ JWE token (compact notation) string
+        :rtype: str
+        '''
         r_get_destination = self._authorized_get(f'/destinations/{destination_id}')
         encryption_kid = r_get_destination.json()['encryptionKid']
 
@@ -187,11 +296,34 @@ class FITConnectClient:
         return data_encrypted.serialize(compact=True)
 
     def decrypt(self, private_key, data_encrypted):
+        '''Decrypt data using the given private key
+
+        :param private_key: The private key as JSON Web Key
+        :type destination_id: jwcrypto.jwk.JWK
+        :param data_decrypted: A 'raw' JWE token (JSON Encoded or Compact
+            notation) string.
+        :type data: str
+        :return: The decrypted data
+        :rtype: bytes
+        '''
         jwetoken = jwe.JWE()
         jwetoken.deserialize(data_encrypted, key=private_key)
         return jwetoken.payload
 
     def latest_metadata_schema(self, major=None, minor=None, patch=None):
+        '''load latest metadata schema included in this SDK. If major, minor or
+        patch parameters are given, the latest schema matching these criteria
+        is retrieved.
+
+        :param major: The major version of the metadata schema
+        :type major: int
+        :param minor: The minor version of the metadata schema
+        :type minor: int
+        :param patch: The patchversion of the metadata schema
+        :type patch: int
+        :return: The metadata schema
+        :rtype: dict
+        '''
         latest_version = semver.Version(major = 1)
         matching_version_found = False
 
@@ -213,6 +345,24 @@ class FITConnectClient:
             return json.load(file)
 
     def create_submission(self, destination_id, leika_key, num_attachments=0):
+        '''Create a submission via the Submission API. If you just want to send
+        a submission without dealing with API-specific details, just use the
+        `submission` method instead.
+
+        :param destination_id: The destination id of the destination to which
+            the submission is sent
+        :type destination_id: str
+        :param leika_key: The LeiKa key ("Leistungsschlüssel" from
+            "Leistungskatalog der öffentlichen Verwaltung") for this submission
+            represented as urn. E.g. `urn:de:fim:leika:leistung:99018115001001`
+        :type leika_key: str
+        :param num_attachments: The number of attachments that will be
+            announced. Defaults to 0
+        :type num_attachments: int
+        :return: The response from the API, with the additional
+            `announcedAttachments` parameter
+        :rtype: dict
+        '''
         # TODO: verify that leika_key matches destination
 
         submission_request = {
@@ -237,6 +387,28 @@ class FITConnectClient:
         return submission
 
     def upload_attachment(self, destination_id, submission_id, attachment_id, attachment=None, attachment_encrypted=None):
+        '''Upload an attachment for an existing submission via the Submission
+        API. If you just want to send a submission without dealing with
+        API-specific details, just use the `submission` method instead.
+        Please provide either `attachment` or `attachment_encrypted`.
+
+        :param destination_id: The destination id of the destination to which
+            the attachment is sent
+        :type destination_id: str
+        :param submission_id: The submission id of the submission to which
+            the attachment is attached
+        :type submission_id: str
+        :param attachment_id: The attachement id of the attachement to be
+            uploaded
+        :type attachment_id: str
+        :param attachment: The unencrypted attachment to be encrypted and
+            uploaded
+        :type attachment: dict, str, or bytes, optional
+        :param encrypted_attachment: The encrypted attachment to be uploaded
+        :type encrypted_attachment: str, optional
+        :return: The Response from the API
+        :rtype: requests.Response
+        '''
         if attachment_encrypted is None and attachment is not None:
             attachment_encrypted = self.encrypt(destination_id, attachment)
 
@@ -252,6 +424,28 @@ class FITConnectClient:
         return r_upload_attachment
 
     def submit_submission(self, destination_id, submission_id, metadata=None, metadata_encrypted=None, data=None, data_encrypted=None):
+        '''Submit a submission via the Submission API. If you just want to send
+        a submission without dealing with API-specific details, just use the
+        `submission` method instead. Please provide either `metadata` or
+        `metadata_encrypted` and either `data` or `data_encrypted`.
+
+        :param destination_id: The destination id of the destination to which
+            the submission is sent
+        :type destination_id: str
+        :param submission_id: The submission id of the submission
+        :type submission_id: str
+        :param metadata: The unencrypted metadata to be encrypted and
+            uploaded
+        :type metadata: dict, str, or bytes, optional
+        :param encrypted_metadata: The encrypted metadata to be uploaded
+        :type encrypted_metadata: str, optional
+        :param data: The unencrypted data to be encrypted and uploaded
+        :type data: dict, str, or bytes, optional
+        :param encrypted_data: The encrypted data to be uploaded
+        :type encrypted_data: str, optional
+        :return: The response from the API
+        :rtype: dict
+        '''
         if metadata_encrypted is None and metadata is not None:
             metadata_encrypted = self.encrypt(destination_id, metadata)
         if data_encrypted is None and data is not None:
@@ -266,6 +460,37 @@ class FITConnectClient:
         return r_submit_submission.json()
 
     def submission(self, destination_id, leika_key, metadata=None, metadata_encrypted=None, data=None, data_encrypted=None, data_sha512=None, data_schema=None, attachments=[]):
+        '''All-in-one method to create, encrypt and send a submission including
+        attachments. Please provide either `metadata` or `metadata_encrypted`
+        and either `data` or `data_encrypted`.
+
+        :param destination_id: The destination id of the destination to which
+            the submission is sent
+        :type destination_id: str
+        :param leika_key: The LeiKa key ("Leistungsschlüssel" from
+            "Leistungskatalog der öffentlichen Verwaltung") for this submission
+            represented as urn. E.g. `urn:de:fim:leika:leistung:99018115001001`
+        :type leika_key: str
+        :type metadata: dict, str, or bytes, optional
+        :param encrypted_metadata: The encrypted metadata to be uploaded
+        :type encrypted_metadata: str, optional
+        :param data: The unencrypted data to be encrypted and uploaded
+        :type data: dict, str, or bytes, optional
+        :param encrypted_data: The encrypted data to be uploaded
+        :type encrypted_data: str, optional
+        :param data_sha512: The SHA-512 hash of the unencrypted data. This
+            parameter is required only if the `encrypted_data` parameter is
+            used. Otherwise the hash value will be calculated automatically.
+        :type data_sha512: str, optional
+        :param data_schema: The schema reference of the data as URI. This
+            parameter is required only if the schema URI cannot be retrieved
+            from the `data` object (in JSON format) via the `$schema` attribute.
+        :param attachments: The list of unencrypted attachments to be sent.
+            Defaults to an empty list
+        :type attachments: list, optional
+        :return: The response from the API
+        :rtype: dict
+        '''
         submission = self.create_submission(destination_id, leika_key, len(attachments))
         submission_id = submission['submissionId']
 
@@ -356,10 +581,27 @@ class FITConnectClient:
         return self.submit_submission(destination_id, submission_id, metadata, metadata_encrypted, data, data_encrypted)
 
     def available_submissions(self):
+        '''Retrieve a list of available submissions
+
+        :return: The list of avaliable submissions as a list of dicts containing
+            the destination id, submission id and case id of the available
+            submission
+        :rtype: list
+        '''
         r_get_submissions = self._authorized_get('/submissions')
         return r_get_submissions.json()['submissions'] # TODO: pagination
 
     def retrieve_submission(self, submission_id, private_key):
+        '''All-in-one method to retrieve a submission including attachments
+
+        :param submission_id: The submission id of the submission
+        :type submission_id: str
+        :param private_key: The private key of the corresponding destination as
+            JSON Web Key
+        :type destination_id: jwcrypto.jwk.JWK
+        :return: The submission as dict
+        :rtype: dict
+        '''
         private_key = jwk.JWK.from_json(json.dumps(private_key))
 
         r_get_submission = self._authorized_get(f'/submissions/{submission_id}')
