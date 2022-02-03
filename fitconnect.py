@@ -38,7 +38,7 @@ METADATA_SCHEMA_URI = 'https://schema.fitko.de/fit-connect/metadata/'
 SEMVER_REGEX = '[1-9]+\.[0-9]+\.[0-9]+'
 
 class FITConnectClient:
-    def __init__(self, environment, client_id, client_secret):
+    def __init__(self, environment, client_id, client_secret, insecure=False):
         # configure environment
         allowed_environments = [Environment.DEV, Environment.TESTING]
         if environment not in allowed_environments:
@@ -50,6 +50,8 @@ class FITConnectClient:
         # set OAuth credentials
         self.client_id = client_id
         self.client_secret = client_secret
+
+        self.ignore_metadata_hashes = insecure
 
     def _get_access_token(self, client_id, client_secret):
         log.debug(f'POST {self.token_url}')
@@ -390,7 +392,7 @@ class FITConnectClient:
                 schema_version = semver.Version.parse(match[1])
                 metadata_schema = self.latest_metadata_schema(major=schema_version.major, minor=schema_version.minor)
             else:
-                log.error(f"Invalid $schema: {schema}")
+                log.error(f"Invalid $schema: '{schema}' on instance: {metadata}")
                 raise ValueError("Invalid $schema:", schema)
         else:
             # if no schema is given, assume latest v1.0.x
@@ -399,8 +401,9 @@ class FITConnectClient:
         try:
             jsonschema.validate(metadata, metadata_schema)
         except jsonschema.exceptions.ValidationError as e:
-            log.error("Metadata does not match schema")
-            raise e # TODO: raise InvalidMetadataError
+            if not self.ignore_metadata_hashes:
+                log.error("Metadata does not match schema")
+                raise e # TODO: raise InvalidMetadataError
 
         submission['metadata'] = metadata
 
@@ -412,7 +415,7 @@ class FITConnectClient:
         if 'data' not in metadata['contentStructure']:
             raise ValueError("Data missing in metadata['contentStructure']")
 
-        if hash != metadata['contentStructure']['data']['hash']['content']:
+        if not self.ignore_metadata_hashes and hash != metadata['contentStructure']['data']['hash']['content']:
             raise ValueError("Invalid attachment hash!")
 
         try:
@@ -435,7 +438,7 @@ class FITConnectClient:
             if len(metadata_attachments_filtered) != 1:
                 raise ValueError("Invalid attachments in metadata")
 
-            if hash != metadata_attachments_filtered[0]['hash']['content']:
+            if not self.ignore_metadata_hashes and hash != metadata_attachments_filtered[0]['hash']['content']:
                 raise ValueError("Invalid attachment hash!")
 
             attachments[attachment_id] = attachment_decrypted
