@@ -131,6 +131,7 @@ class FITConnectClient:
         r = requests.get(self.submission_api_url + path, headers = {'Authorization': 'Bearer ' + self.access_token})
         # TODO: error handling for http errors
         log.debug(f'status_code = {r.status_code}')
+        log.debug(f'headers = {r.headers}')
         log.debug(f'resp = {r.text}')
         return r
 
@@ -327,7 +328,9 @@ class FITConnectClient:
         latest_version = semver.Version(major = 1)
         matching_version_found = False
 
-        for file_name in os.listdir('./schema'):
+        schema_dir = os.path.join(os.path.dirname(__file__), 'schema')
+
+        for file_name in os.listdir(schema_dir):
             match = re.match('^metadata\.schema\.v(' + SEMVER_REGEX + ')\.json$', file_name)
             if match and match[1] >= latest_version and \
                 (major is None or semver.Version.parse(match[1]).major == major) and \
@@ -341,7 +344,7 @@ class FITConnectClient:
 
         log.debug(f'Loading metadata schema v{latest_version}')
 
-        with open('./schema/metadata.schema.v' + str(latest_version) + '.json') as file:
+        with open(os.path.join(schema_dir, 'metadata.schema.v' + str(latest_version) + '.json')) as file:
             return json.load(file)
 
     def create_submission(self, destination_id, leika_key, num_attachments=0):
