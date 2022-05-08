@@ -379,9 +379,11 @@ class FITConnectClient:
 
         r_create_submission = self._authorized_post('/submissions', json=submission_request)
         if r_create_submission.status_code != 201:
+            if r_create_submission.json()['type'] == PROBLEM_PREFIX + 'destination-not-found':
+                raise ValueError("Could not create submission: destination does not exist")
             if r_create_submission.json()['type'] == PROBLEM_PREFIX + 'destination-state-invalid':
-                raise ValueError("Destination has not been actived yet or is not active any more")
-            raise ValueError("Could not create submission")
+                raise ValueError("Could not create submission: destination has not been actived yet or is not active any more")
+            raise ValueError("Could not create submission", r_create_submission.text)
 
         submission = r_create_submission.json()
         submission['announcedAttachments'] = submission_request['announcedAttachments']
