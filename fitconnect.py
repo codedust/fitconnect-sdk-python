@@ -299,7 +299,7 @@ class FITConnectClient:
         '''Decrypt data using the given private key
 
         :param private_key: The private key as JSON Web Key
-        :type destination_id: jwcrypto.jwk.JWK
+        :type private_key: jwcrypto.jwk.JWK
         :param data_decrypted: A 'raw' JWE token (JSON Encoded or Compact
             notation) string.
         :type data: str
@@ -309,6 +309,25 @@ class FITConnectClient:
         jwetoken = jwe.JWE()
         jwetoken.deserialize(data_encrypted, key=private_key)
         return jwetoken.payload
+
+    def decrypt_json(self, private_key, data_encrypted):
+        '''Decrypt and parse encrypted json data
+
+        :param private_key: The private key as JSON Web Key
+        :type private_key: jwcrypto.jwk.JWK
+        :param data_encrypted: A 'raw' JWE token (JSON Encoded or Compact
+            notation) string.
+        :type data: str
+        :return: The decrypted json object
+        :rtype: dict
+        '''
+        data_decrypted = self.decrypt(private_key, data_encrypted)
+
+        try:
+            return json.loads(data_decrypted)
+        except json.decoder.JSONDecodeError as e:
+            log.error("Could not parse decrypted data as json")
+            raise e
 
     def latest_metadata_schema(self, major=None, minor=None, patch=None):
         '''load latest metadata schema included in this SDK. If major, minor or
@@ -475,6 +494,7 @@ class FITConnectClient:
             "Leistungskatalog der öffentlichen Verwaltung") for this submission
             represented as urn. E.g. `urn:de:fim:leika:leistung:99018115001001`
         :type leika_key: str
+        :param metadata: The unencrypted metadata to be uploaded
         :type metadata: dict, str, or bytes, optional
         :param encrypted_metadata: The encrypted metadata to be uploaded
         :type encrypted_metadata: str, optional
@@ -595,42 +615,12 @@ class FITConnectClient:
         r_get_submissions = self._authorized_get('/submissions')
         return r_get_submissions.json()['submissions'] # TODO: pagination
 
-    def retrieve_submission(self, submission_id, private_key):
-        '''All-in-one method to retrieve a submission including attachments
+    def _validate_metadata_schema(self, metadata):
+        '''Validate metadata json schema
 
-        :param submission_id: The submission id of the submission
-        :type submission_id: str
-        :param private_key: The private key of the corresponding destination as
-            JSON Web Key
-        :type destination_id: jwcrypto.jwk.JWK
-        :return: The submission as dict
-        :rtype: dict
+        :param metadata: the unencrypted metadata dict
+        :type metadata: dict
         '''
-        private_key = jwk.JWK.from_json(json.dumps(private_key))
-
-        r_get_submission = self._authorized_get(f'/submissions/{submission_id}')
-
-        if r_get_submission.status_code != 200:
-            r_get_submission_json = r_get_submission.json()
-            if r_get_submission_json['type'] == PROBLEM_PREFIX + 'submission-not-found':
-                raise ValueError("Submission not found")
-
-            raise ValueError("Error fetching submission")
-
-        log.info(f'Submission retrieved (submission_id = {submission_id})')
-
-        submission = r_get_submission.json() # TODO: validate schema
-
-        # handle metadata
-        metadata_decrypted = self.decrypt(private_key, submission['encryptedMetadata']) # TODO: error handling
-
-        # validate metadata json schema
-        try:
-            metadata = json.loads(metadata_decrypted)
-        except json.decoder.JSONDecodeError as e:
-            log.error("Could not parse metadata as json")
-            raise e
-
         if '$schema' in metadata:
             schema = metadata['$schema']
             match = re.match('^' + re.escape(METADATA_SCHEMA_URI) + '('+SEMVER_REGEX+')' + re.escape('/metadata.schema.json') + '$', schema)
@@ -651,18 +641,83 @@ class FITConnectClient:
                 log.error("Metadata does not match schema")
                 raise e # TODO: raise InvalidMetadataError
 
-        submission['metadata'] = metadata
+    def verify_metadata_data_hash(self, metadata, data_decrypted):
+        '''verify hash value from metadata for data
 
-        # handle data
-        data_decrypted = self.decrypt(private_key, submission['encryptedData']) # TODO: error handling
-
-        # verify hash values from metadata for data
-        hash = hashlib.sha512(data_decrypted).hexdigest()
+        :param metadata: the unencrypted metadata dict
+        :type metadata: dict
+        :param data_decrypted: the decrypted data object as bytes
+        :type metadata: bytes
+        '''
+        data_decrypted_hash = hashlib.sha512(data_decrypted).hexdigest()
         if 'data' not in metadata['contentStructure']:
             raise ValueError("Data missing in metadata['contentStructure']")
 
-        if not self.ignore_metadata_hashes and hash != metadata['contentStructure']['data']['hash']['content']:
+        if not self.ignore_metadata_hashes and data_decrypted_hash != metadata['contentStructure']['data']['hash']['content']:
             raise ValueError("Invalid attachment hash!")
+
+    def verify_metadata_attachment_hash(self, metadata, attachment_id, attachment_decrypted):
+        '''verify hash value from metadata for the given attachement
+
+        :param metadata: the unencrypted metadata dict
+        :type metadata: dict
+        :param attachment_decrypted: the decrypted attachment object as bytes
+        :type metadata: bytes
+        :param attachment_id: the attachment id
+        :type attachment_id: str
+        '''
+        attachment_decrypted_hash = hashlib.sha512(attachment_decrypted).hexdigest()
+        metadata_attachments_filtered = list(filter(lambda a: a['attachmentId'] == attachment_id, metadata['contentStructure']['attachments']))
+        if len(metadata_attachments_filtered) != 1:
+            raise ValueError("Invalid attachments in metadata")
+
+        if not self.ignore_metadata_hashes and attachment_decrypted_hash != metadata_attachments_filtered[0]['hash']['content']:
+            raise ValueError("Invalid attachment hash!")
+
+    def _get_submission(self, submission_id):
+        '''download submission (without attachments)
+
+        :param submission_id: The submission id of the submission
+        :type submission_id: str
+
+        :return: The submission as dict
+        :rtype: dict
+        '''
+        r_get_submission = self._authorized_get(f'/submissions/{submission_id}')
+
+        if r_get_submission.status_code != 200:
+            r_get_submission_json = r_get_submission.json()
+            if r_get_submission_json['type'] == PROBLEM_PREFIX + 'submission-not-found':
+                raise ValueError("Submission not found")
+
+            raise ValueError("Error fetching submission")
+
+        log.info(f'Submission retrieved (submission_id = {submission_id})')
+        return r_get_submission.json() # TODO: validate schema
+
+    def retrieve_submission(self, submission_id, private_key):
+        '''All-in-one method to retrieve a submission including attachments
+
+        :param submission_id: The submission id of the submission
+        :type submission_id: str
+        :param private_key: The private key of the corresponding destination as
+            JSON Web Key
+        :type private_key: jwcrypto.jwk.JWK
+        :return: The submission as dict
+        :rtype: dict
+        '''
+        private_key = jwk.JWK.from_json(json.dumps(private_key))
+
+        # download submission
+        submission = self._get_submission(submission_id)
+
+        # decrypt and validate metadata
+        submission['metadata'] = self.decrypt_json(private_key, submission['encryptedMetadata']) # TODO: error handling
+        self._validate_metadata_schema(submission['metadata'])
+
+        # decrypt and validata data
+        data_decrypted = self.decrypt(private_key, submission['encryptedData']) # TODO: error handling
+        self.verify_metadata_data_hash(submission['metadata'], data_decrypted)
 
         try:
             submission['data_json'] = json.loads(data_decrypted)
@@ -676,18 +731,10 @@ class FITConnectClient:
             r_get_attachment = self._authorized_get(f'/submissions/{submission_id}/attachments/{attachment_id}')
             log.info(f'Attachment retrieved (submission_id = {submission_id}, attachment_id = {attachment_id})')
 
-            attachment_decrypted = self.decrypt(private_key, r_get_attachment.text) # TODO: error handling
+            attachments[attachment_id] = self.decrypt(private_key, r_get_attachment.text) # TODO: error handling
 
             # verify hash values from metadata for attachment
-            hash = hashlib.sha512(attachment_decrypted).hexdigest()
-            metadata_attachments_filtered = list(filter(lambda a: a['attachmentId'] == attachment_id, metadata['contentStructure']['attachments']))
-            if len(metadata_attachments_filtered) != 1:
-                raise ValueError("Invalid attachments in metadata")
-
-            if not self.ignore_metadata_hashes and hash != metadata_attachments_filtered[0]['hash']['content']:
-                raise ValueError("Invalid attachment hash!")
-
-            attachments[attachment_id] = attachment_decrypted
+            self.verify_metadata_attachment_hash(submission['metadata'], attachment_id, attachments[attachment_id])
 
         submission['attachments'] = attachments
 
