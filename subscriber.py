@@ -1,5 +1,6 @@
 from fitconnect import FITConnectClient, Environment
 from jwcrypto.jwe import InvalidJWEData
+from os import path
 from strictyaml import load, Map, Str, Int, Seq, YAMLError
 from strictyaml import Enum as YAMLEnum
 import json
@@ -10,14 +11,10 @@ import logging
 logging.basicConfig()
 #logging.getLogger('fitconnect').level = logging.INFO
 
-# load private key for decryption
-private_key_decryption = None
-with open('conf/privateKey_decryption.json') as private_key_file:
-    private_key_decryption = json.load(private_key_file)
-
 def read_config(config_file):
     config_schema = Map({
         "destination_id": Str(),
+        "private_key_decryption_file": Str(),
         "sdk": Map({
             "environment": YAMLEnum([e.name for e in Environment]), # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
             "client_id": Str(),
@@ -28,6 +25,11 @@ def read_config(config_file):
     # parse yaml config
     with open(config_file) as file:
         config = load(file.read(), config_schema, label=config_file).data
+
+    # load private key for decryption
+    with open(path.join(path.dirname(config_file), config['private_key_decryption_file'])) as private_key_file:
+        config['private_key_decryption'] = json.load(private_key_file)
+
     return config
 
 # read config_file
@@ -45,7 +47,8 @@ submissions = fitc.available_submissions()
 for submission in submissions:
     submission_id = submission['submissionId']
     try:
-        submission = fitc.retrieve_submission(submission_id, private_key_decryption)
+        print(f"\n== Retrieving submission {submission_id} ==")
+        submission = fitc.retrieve_submission(submission_id, config['private_key_decryption'])
 
         if submission['metadata']:
             print("=== Metadaten ===")
@@ -64,7 +67,7 @@ for submission in submissions:
     except InvalidJWEData as e:
         print(f"Could not decrypt submission {submission_id}")
     except jsonschema.exceptions.ValidationError as e:
-        print(f"Invalid schema in submission {submission_id}")
+        print(f"Invalid schema in submission {submission_id}:", e)
     except json.decoder.JSONDecodeError as e:
         print(f"Unparsable json in submission {submission_id}")
     except ValueError as e:
