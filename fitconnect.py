@@ -116,8 +116,7 @@ class FITConnectClient:
         '''Internal method to refresh the OAuth access token
         '''
         # TODO: only refresh if access token is expired
-        if self.client_id is not None and self.client_secret is not None:
-            self.access_token = self._get_access_token(self.client_id, self.client_secret)
+        self.access_token = self._get_access_token(self.client_id, self.client_secret)
 
     def _authorized_get(self, path):
         '''Internal method to execute authorized GET requests to Submission API
