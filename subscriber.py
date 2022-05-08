@@ -1,8 +1,6 @@
+from read_config import read_config_subscriber
 from fitconnect import FITConnectClient, Environment
 from jwcrypto.jwe import InvalidJWEData
-from os import path
-from strictyaml import load, Map, Str, Int, Seq, YAMLError
-from strictyaml import Enum as YAMLEnum
 import json
 import jsonschema
 import logging
@@ -11,29 +9,8 @@ import logging
 logging.basicConfig()
 #logging.getLogger('fitconnect').level = logging.INFO
 
-def read_config(config_file):
-    config_schema = Map({
-        "destination_id": Str(),
-        "private_key_decryption_file": Str(),
-        "sdk": Map({
-            "environment": YAMLEnum([e.name for e in Environment]), # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
-            "client_id": Str(),
-            "client_secret": Str(),
-        }),
-    })
-
-    # parse yaml config
-    with open(config_file) as file:
-        config = load(file.read(), config_schema, label=config_file).data
-
-    # load private key for decryption
-    with open(path.join(path.dirname(config_file), config['private_key_decryption_file'])) as private_key_file:
-        config['private_key_decryption'] = json.load(private_key_file)
-
-    return config
-
 # read config_file
-config = read_config('conf/subscriber.yaml')
+config = read_config_subscriber('conf/subscriber.yaml')
 
 # initialize SDK
 fitc = FITConnectClient(Environment[config['sdk']['environment']], config['sdk']['client_id'], config['sdk']['client_secret'])
