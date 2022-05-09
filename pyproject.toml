@@ -1,10 +1,9 @@
 [tool.poetry]
 name = "fitconnect"
-version = "0.4.0"
+version = "0.4.2"
 description = ""
 authors = ["Your Name <you@example.com>"]
 license = "EUPL-1.2"
-include = ["schema"]
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"

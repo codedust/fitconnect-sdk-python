@@ -46,6 +46,21 @@ PROBLEM_PREFIX = 'https://schema.fitko.de/fit-connect/submission-api/problems/'
 METADATA_SCHEMA_URI = 'https://schema.fitko.de/fit-connect/metadata/'
 SEMVER_REGEX = '[1-9]+\.[0-9]+\.[0-9]+'
 
+class ProblemDetailError(Exception):
+    '''exception that represents a "problem detail" according to RFC 7807, see https://datatracker.ietf.org/doc/html/rfc7807'''
+    def __init__(self, problem_detail, *args):
+        super().__init__(args)
+        self.problem_type = problem_detail['type']
+        self.title = problem_detail['title']
+        self.detail = problem_detail['detail']
+        self.instance = problem_detail['instance'] if 'instance' in problem_detail else None
+
+    def __str__(self):
+        if self.instance is not None:
+            return f'{self.title} <{self.problem_type}:{self.instance}> ({self.detail})'
+        else:
+            return f'{self.title} <{self.problem_type}> ({self.detail})'
+
 class FITConnectClient:
     '''The main class of this SDK. Initialize the SDK by initializing a
     FITConnectClient object.
