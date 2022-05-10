@@ -26,7 +26,7 @@ See [sender.py](./sender.py) and [subscriber.py](./subscriber.py) for details.
 
 ## How to run examples
 1. Create an account for the [test environment](https://docs.fitko.de/fit-connect/docs/getting-started/account).
-2. Copy `conf/sender.yaml.example` to `conf/sender.example` and set credentials.
+2. Copy `conf/sender.yaml.example` to `conf/sender.yaml` and set credentials.
 3. Run sender example:
 
 ```bash
