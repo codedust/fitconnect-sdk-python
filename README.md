@@ -52,10 +52,9 @@ Running the subscriber example is done analogously.
 - [ ] additional examples and integrations
 
 ## Contributing
-Documentation and tests can always be improved.
-Your support in this direction is much appreciated!
-Also, code contributions, bug reports and feature requests are always welcome.
-Before submitting any larger code changes or adding new features, please first get in touch to avoid wasting your time with duplicate work.
+Help with new features, documentation and tests is much appreciated!
+Also, bug reports and feature requests are always welcome.
+Before submitting any (larger) code changes or adding new features, please first get in touch via the issue tracker.
 
 ## License
 Licensed under the [EUPL](./LICENSE.txt).
