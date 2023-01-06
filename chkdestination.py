@@ -27,14 +27,19 @@ for client in clients:
     #Initialize SDK for specific Environment
     fitc = FITConnectClient(Environment[config[client]['environment']], config[client]['client_id'], config[client]['client_secret'])
 
-    # collect response
+    # query destinaton and collect response
     response = fitc.get_destination(destination)
-
-    # get status TRUE or FALSE
+    # get status
     status = response.ok
+    # get status_code
+    statusCode = response.status_code
+
     # convert response content into a JSON
-    jsonValue = json.loads(response.content.decode())
-    if status == True:
-        print(f"Environment {client}: Destination {jsonValue['destinationId']} is {jsonValue['status']}")        
-    elif status == False:
-        print (f"Environment {client}: {jsonValue['detail']}")
+    if statusCode != 503: # run only if service available
+        jsonValue = json.loads(response.content.decode())
+        if status == True:
+            print(f"Environment {client}: Destination {jsonValue['destinationId']} is {jsonValue['status']}.")        
+        elif status == False:
+            print (f"Environment {client}: {jsonValue['detail']}.")
+    else:
+        print(f"Environment {client}: Service not available.")
