@@ -38,8 +38,14 @@ _ENVIRONMENT_CONFIG = {
         'TOKEN_URL': 'https://auth-testing.fit-connect.fitko.dev/token',
         'SUBMISSION_API_URL': 'https://submission-api-testing.fit-connect.fitko.dev/v1',
     },
-    Environment.STAGING: {},
-    Environment.PRODUCTION: {}
+    Environment.STAGING: {
+        'TOKEN_URL': 'https://auth-refz.fit-connect.fitko.net/token',
+        'SUBMISSION_API_URL': 'https://submission-api-refz.fit-connect.niedersachsen.de/v1',        
+    },
+    Environment.PRODUCTION: {
+        'TOKEN_URL': 'https://auth-prod.fit-connect.fitko.net/token',
+        'SUBMISSION_API_URL': 'https://submission-api-prod.fit-connect.niedersachsen.de/v1',
+    }
 }
 
 PROBLEM_PREFIX = 'https://schema.fitko.de/fit-connect/submission-api/problems/'
@@ -83,7 +89,7 @@ class FITConnectClient:
         '''Constructor method
         '''
         # configure environment
-        allowed_environments = [Environment.DEV, Environment.TESTING]
+        allowed_environments = [Environment.DEV, Environment.TESTING, Environment.STAGING, Environment.PRODUCTION]
         if environment not in allowed_environments:
             raise ValueError(f'Invalid environment given: {environment}. For now, this SDK is meant to be used for testing purposes only. Please do not use in production yet! Environment be one of {allowed_environments}.')
 

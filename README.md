@@ -36,6 +36,8 @@ poetry run python sender.py
 
 Running the subscriber example is done analogously.
 
+Running the chkdestination example is done similar but requires a destination ID as parameter
+
 ## Features
 - [x] encrypt and send submissions
 - [x] receive and decrypt submissions
