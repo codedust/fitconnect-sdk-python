@@ -1,16 +1,27 @@
 from read_config import read_config_subscriber
 from fitconnect import FITConnectClient, Environment
 from jwcrypto.jwe import InvalidJWEData
+import argparse
 import json
 import jsonschema
 import logging
+
+# parse command line arguments
+parser = argparse.ArgumentParser(
+                    prog = 'subscriber',
+                    description = 'This script uses a subscriber client to retrieve all submissions the subscriber has access to')
+
+parser.add_argument('-c', '--config', help='Path to config file', default='conf/subscriber.yaml')
+parser.add_argument('-d', '--data_dir', help='Path to config file', default='./subscriber-data')
+
+args = parser.parse_args()
 
 # configure logging
 logging.basicConfig()
 #logging.getLogger('fitconnect').level = logging.INFO
 
 # read config_file
-config = read_config_subscriber('conf/subscriber.yaml')
+config = read_config_subscriber(args.config)
 
 # initialize SDK
 fitc = FITConnectClient(Environment[config['sdk']['environment']], config['sdk']['client_id'], config['sdk']['client_secret'])
@@ -38,7 +49,7 @@ for submission in submissions:
         for attachment_id, attachment in submission['attachments'].items():
             print(f"\n=== Anhang ({attachment_id}) ===")
             if attachment.startswith(b'%PDF'):
-                with open(f'./subscriber-data/{submission_id}--{attachment_id}-data.pdf', 'wb') as f:
+                with open(f'{args.data_dir}/{submission_id}--{attachment_id}-data.pdf', 'wb') as f:
                     f.write(attachment)
                     print("File written (Type: pdf)")
     except InvalidJWEData as e:
