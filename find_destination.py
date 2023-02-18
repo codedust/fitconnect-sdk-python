@@ -27,19 +27,19 @@ config = read_config_multi_environment(args.config)
 # Run through all environments read from the configuration file
 for environment in config['environments']:
     # initialize SDK for specific environment (insecure=True to allow access to staging/prod)
-    fitc = FITConnectClient(Environment[environment], config['environments'][environment]['client_id'], config['environments'][environment]['client_secret'], insecure=True)
+    fitc = FITConnectClient(Environment[environment['environment']], environment['client_id'], environment['client_secret'], insecure=True)
 
     # query destinaton and collect response
     r = fitc.get_destination(args.destination_id)
 
     if r.status_code == 503: # service unavailable
-        print(f"Environment {environment}: Service not available.")
+        print(f"Environment {environment['environment']}: Service not available.")
         continue
 
     if r.ok:
-        print(f"Environment {environment}: Destination {r.json()['destinationId']} found with status `{r.json()['status']}`.")
+        print(f"Environment {environment['environment']}: Destination {r.json()['destinationId']} found with status `{r.json()['status']}`.")
     else:
-        print(f"Environment {environment}: {r.json()['detail']}.")
+        print(f"Environment {environment['environment']}: {r.json()['detail']}.")
 
     if args.verbose:
         print(json.dumps(r.json(), indent=2) + '\n')
