@@ -25,8 +25,8 @@ config = read_config_multi_environment(args.config)
 
 # Run through all environments read from the configuration file
 for environment in config['environments']:
-    #Initialize SDK for specific Environment
-    fitc = FITConnectClient(Environment[environment], config['environments'][environment]['client_id'], config['environments'][environment]['client_secret'])
+    # initialize SDK for specific environment (insecure=True to allow access to staging/prod)
+    fitc = FITConnectClient(Environment[environment], config['environments'][environment]['client_id'], config['environments'][environment]['client_secret'], insecure=True)
 
     # query destinaton and collect response
     response = fitc.get_destination(args.destination_id)

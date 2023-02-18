@@ -89,7 +89,12 @@ class FITConnectClient:
         '''Constructor method
         '''
         # configure environment
-        allowed_environments = [Environment.DEV, Environment.TESTING, Environment.STAGING, Environment.PRODUCTION]
+        allowed_environments = [Environment.DEV, Environment.TESTING]
+        if insecure:
+            # this sdk is not production ready yet!
+            allowed_environments.append(Environment.STAGING)
+            allowed_environments.append(Environment.PRODUCTION)
+
         if environment not in allowed_environments:
             raise ValueError(f'Invalid environment given: {environment}. For now, this SDK is meant to be used for testing purposes only. Please do not use in production yet! Environment be one of {allowed_environments}.')
 
