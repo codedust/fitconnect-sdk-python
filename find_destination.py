@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(
                     prog = 'find_destination',
                     description = 'This script uses sender clients to check if a destination exists in any FIT-Connect environment')
 
-parser.add_argument('-c', '--config', help='Path to config file', default='conf/destination.yaml')
+parser.add_argument('-c', '--config', help='Path to config file', default='conf/find_destination.yaml')
 parser.add_argument('destination_id', help='The destination that is being searched for')
 
 args = parser.parse_args()
