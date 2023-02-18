@@ -47,27 +47,28 @@ def read_config_subscriber(config_file):
 
 '''Read data for sender clients to verify if a destination exists. At least one sender
 client configuration is required. For specific deteils see the destination.yaml.example'''
-def read_config_destination(config_file):
+def read_config_multi_environment(config_file):
     config_schema = Map({
-        Optional("TESTING"): Map({
-            # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
-            "environment": YAMLEnum([e.name for e in Environment]),
-            "client_id": Str(),
-            "client_secret": Str(),
+        "environments": Map({
+            Optional("TESTING"): Map({
+                # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
+                "environment": YAMLEnum([e.name for e in Environment]),
+                "client_id": Str(),
+                "client_secret": Str(),
+            }),
+            Optional("STAGING"): Map({
+                # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
+                "environment": YAMLEnum([e.name for e in Environment]),
+                "client_id": Str(),
+                "client_secret": Str(),
+            }),
+            Optional("PRODUCTION"): Map({
+                # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
+                "environment": YAMLEnum([e.name for e in Environment]),
+                "client_id": Str(),
+                "client_secret": Str(),
+            }),
         }),
-        Optional("STAGING"): Map({
-            # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
-            "environment": YAMLEnum([e.name for e in Environment]),
-            "client_id": Str(),
-            "client_secret": Str(),
-        }),
-        Optional("PRODUCTION"): Map({
-            # change to native Enum when strictyaml supports it: https://github.com/crdoconnor/strictyaml/issues/73
-            "environment": YAMLEnum([e.name for e in Environment]),
-            "client_id": Str(),
-            "client_secret": Str(),
-        }),
-
     })
 
     # parse yaml config

@@ -1,4 +1,4 @@
-from read_config import read_config_destination
+from read_config import read_config_multi_environment
 from fitconnect import FITConnectClient, Environment
 import argparse
 import json
@@ -21,13 +21,12 @@ logging.basicConfig()
 logging.getLogger('fitconnect').level = logging.INFO
 
 # read config_file
-config = read_config_destination(args.config)
+config = read_config_multi_environment(args.config)
 
 # Run through all environments read from the configuration file
-clients = config.keys()
-for client in clients:
+for environment in config['environments']:
     #Initialize SDK for specific Environment
-    fitc = FITConnectClient(Environment[config[client]['environment']], config[client]['client_id'], config[client]['client_secret'])
+    fitc = FITConnectClient(Environment[environment], config['environments'][environment]['client_id'], config['environments'][environment]['client_secret'])
 
     # query destinaton and collect response
     response = fitc.get_destination(args.destination_id)
@@ -40,8 +39,8 @@ for client in clients:
     if statusCode != 503: # run only if service available
         jsonValue = json.loads(response.content.decode())
         if status == True:
-            print(f"Environment {client}: Destination {jsonValue['destinationId']} is {jsonValue['status']}.")        
+            print(f"Environment {environment}: Destination {jsonValue['destinationId']} is {jsonValue['status']}.")
         elif status == False:
-            print (f"Environment {client}: {jsonValue['detail']}.")
+            print (f"Environment {environment}: {jsonValue['detail']}.")
     else:
         print(f"Environment {client}: Service not available.")

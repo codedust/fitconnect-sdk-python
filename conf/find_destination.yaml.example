@@ -1,0 +1,13 @@
+environments:
+  TESTING:
+    environment: TESTING
+    client_id: ''
+    client_secret: ''
+  STAGING:
+    environment: STAGING
+    client_id: ''
+    client_secret: ''
+  PRODUCTION:
+    environment: PRODUCTION
+    client_id: ''
+    client_secret: ''
