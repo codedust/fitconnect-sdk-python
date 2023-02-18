@@ -29,18 +29,13 @@ for environment in config['environments']:
     fitc = FITConnectClient(Environment[environment], config['environments'][environment]['client_id'], config['environments'][environment]['client_secret'], insecure=True)
 
     # query destinaton and collect response
-    response = fitc.get_destination(args.destination_id)
-    # get status
-    status = response.ok
-    # get status_code
-    statusCode = response.status_code
+    r = fitc.get_destination(args.destination_id)
 
-    # convert response content into a JSON
-    if statusCode != 503: # run only if service available
-        jsonValue = json.loads(response.content.decode())
-        if status == True:
-            print(f"Environment {environment}: Destination {jsonValue['destinationId']} is {jsonValue['status']}.")
-        elif status == False:
-            print (f"Environment {environment}: {jsonValue['detail']}.")
+    if r.status_code == 503: # service unavailable
+        print(f"Environment {environment}: Service not available.")
+        continue
+
+    if r.ok:
+        print(f"Environment {environment}: Destination {r.json()['destinationId']} found with status `{r.json()['status']}`.")
     else:
-        print(f"Environment {client}: Service not available.")
+        print(f"Environment {environment}: {r.json()['detail']}.")
