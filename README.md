@@ -36,7 +36,10 @@ poetry run python sender.py
 
 Running the subscriber example is done analogously.
 
-Running the chkdestination example is done similar but requires a destination ID as parameter
+Using the `find_destination` script, the existence of a destination can be checked accross all environments (TESTING, STAGING, PROD):
+```bash
+poetry run python find_destination.py [DESTINATION_ID]
+```
 
 ## Features
 - [x] encrypt and send submissions
