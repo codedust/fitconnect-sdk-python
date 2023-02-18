@@ -137,7 +137,7 @@ format-nongpl = ["fqdn", "idna", "isoduration", "jsonpointer (>1.13)", "rfc3339-
 
 [[package]]
 name = "jwcrypto"
-version = "1.2"
+version = "1.4.2"
 description = "Implementation of JOSE Web standards"
 category = "main"
 optional = false
@@ -145,7 +145,7 @@ python-versions = ">= 3.6"
 develop = false
 
 [package.dependencies]
-cryptography = ">=2.3"
+cryptography = ">=3.4"
 deprecated = "*"
 
 [package.source]
@@ -278,7 +278,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4.0"
-content-hash = "15b788bcce7df46a60bd31f4f602ee8e740177b34ea21b79c7aa5a4045f226be"
+content-hash = "08880fdc3f3df642114e8fd1a8e03a208c4a1d151dcf8ee70501f342d0dd8717"
 
 [metadata.files]
 attrs = [
