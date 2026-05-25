@@ -6,7 +6,7 @@ authors = ["Your Name <you@example.com>"]
 license = "EUPL-1.2"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4.0"
+python = ">=3.8,<4.0"
 requests = "^2.26.0"
 jwcrypto = "^1.4"
 strictyaml = "^1.6.1"
