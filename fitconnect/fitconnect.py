@@ -414,7 +414,7 @@ class FITConnectClient:
 
         submission_request = {
             'destinationId': destination_id,
-            'announcedAttachments': [str(uuid.uuid4())] * num_attachments,
+            'announcedAttachments': [str(uuid.uuid4()) for _ in range(num_attachments)],
             'serviceType': {
                 'name': '', # TODO: auto-fill via leika key
                 'identifier': leika_key
